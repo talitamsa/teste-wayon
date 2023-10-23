@@ -1,16 +1,16 @@
-package controller;
+package com.teste.wayon.controller;
 
-import entity.Transfer;
+import com.teste.wayon.entity.Transfer;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import service.TransferService;
+import com.teste.wayon.service.TransferService;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/extrato")
 public class ExtratoController {
 
     private final TransferService transferService;
@@ -19,9 +19,9 @@ public class ExtratoController {
         this.transferService = transferService;
     }
 
-    @GetMapping
-    public ResponseEntity<List<Transfer>> obterExtrato() {
-        List<Transfer> extrato = transferService.obterExtrato();
+    @GetMapping("/extrato/{numeroConta}")
+    public ResponseEntity<List<Transfer>> obterExtratoPorConta(@PathVariable long numeroConta) {
+        List<Transfer> extrato = transferService.obterExtratoPorConta(numeroConta);
         return ResponseEntity.ok(extrato);
     }
 }

@@ -1,6 +1,6 @@
-package repository;
+package com.teste.wayon.repository;
 
-import entity.Conta;
+import com.teste.wayon.entity.Conta;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
