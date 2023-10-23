@@ -1,11 +1,13 @@
-package service;
+package com.teste.wayon.service;
 
-import entity.Conta;
-import entity.Transfer;
+import com.teste.wayon.entity.Conta;
+import com.teste.wayon.entity.Transfer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import repository.ContaRepository;
-import repository.TransferRepository;
+import com.teste.wayon.repository.ContaRepository;
+import com.teste.wayon.repository.TransferRepository;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -13,6 +15,7 @@ import java.util.List;
 @Service
 public class TransferService {
 
+    private static final Logger logger = LoggerFactory.getLogger(TransferService.class);
     private final TransferRepository transferRepository;
     private final ContaRepository contaRepository;
 
@@ -26,6 +29,8 @@ public class TransferService {
         if (validarTransferencia(transfer)) {
             long contaOrigem = transfer.getContaOrigem().getConta();
             long contaDestino = transfer.getContaDestino().getConta();
+
+            logger.info("Data de transferência antes da configuração: {}", transfer.getDataTransferencia());
 
             if (!contaRepository.existsByConta(contaOrigem)) {
                 Conta novaContaOrigem = new Conta();
@@ -41,9 +46,17 @@ public class TransferService {
                 contaRepository.save(novaContaDestino);
             }
 
-            transfer.setDataAgendada(LocalDate.now());
+            LocalDate dataTransferencia = transfer.getDataTransferencia();
 
-            double taxa = calculartaxa(transfer.getDataTransferencia(), transfer.getValorTransferencia());
+            logger.info("Data de transferência após a configuração: {}", dataTransferencia);
+
+            double taxa = calcularTaxa(dataTransferencia, transfer.getValorTransferencia());
+            if (taxa == -1) {
+                throw new IllegalArgumentException("Transferência não permitida devido à falta de taxa aplicável.");
+            }
+
+            logger.info("Taxa calculada: {}", taxa);
+
             transfer.setTaxa(taxa);
 
             transferRepository.save(transfer);
@@ -52,14 +65,17 @@ public class TransferService {
         }
     }
 
-    public List<Transfer> obterExtrato() {
-        return transferRepository.findAll();
+    public List<Transfer> obterExtratoPorConta(long numeroConta) {
+        return transferRepository.findByContaOrigemContaOrContaDestinoConta(numeroConta, numeroConta);
     }
 
-    private double calculartaxa(LocalDate dataTransferencia, double valorTransferencia) {
-        int diasTransferencia = carcularDiasDeTransferencia(dataTransferencia);
+    public double calcularTaxa(LocalDate dataTransferencia, double valorTransferencia) {
+        LocalDate dataAgendamento = LocalDate.now();
+        int diasTransferencia = (int) dataAgendamento.until(dataTransferencia).getDays();
 
-        if (diasTransferencia == 0) {
+        if (diasTransferencia < 0) {
+            throw new IllegalArgumentException("Data de transferência inválida");
+        } else if (diasTransferencia == 0) {
             return valorTransferencia * 0.025;
         } else if (diasTransferencia >= 1 && diasTransferencia <= 10) {
             return 0.00;
@@ -72,13 +88,8 @@ public class TransferService {
         } else if (diasTransferencia >= 41 && diasTransferencia <= 50) {
             return valorTransferencia * 0.017;
         } else {
-            return 0.00;
+            throw new IllegalArgumentException("Transferência não permitida devido à falta de taxa aplicável.");
         }
-    }
-
-    private int carcularDiasDeTransferencia(LocalDate dataTransferencia) {
-        LocalDate dataAtual = LocalDate.now();
-        return (int) dataAtual.until(dataTransferencia).getDays();
     }
 
     private boolean validarTransferencia(Transfer transfer) {

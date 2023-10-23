@@ -1,4 +1,4 @@
-package entity;
+package com.teste.wayon.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;

@@ -1,13 +1,13 @@
-package controller;
+package com.teste.wayon.controller;
 
-import entity.Transfer;
+import com.teste.wayon.entity.Transfer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import service.TransferService;
+import com.teste.wayon.service.TransferService;
 
 @RestController
 @RequestMapping("/transferencia")
