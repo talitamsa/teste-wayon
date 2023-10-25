@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.junit.jupiter.api.Assertions;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @SpringBootTest
@@ -15,12 +16,13 @@ public class TransferServiceTest {
 
     @Test
     public void testeCalcularTaxa() {
-        LocalDate dataTransferencia = LocalDate.of(2023, 11, 30);
-        LocalDate dataAgendada = LocalDate.of(2023, 10, 23);
-        double valorTransferencia = 250.00;
+        LocalDate dataTransferencia = LocalDate.of(2023, 11, 29);
+        BigDecimal valorTransferencia = new BigDecimal("275");
 
-        double taxa = transferService.calcularTaxa(dataTransferencia, valorTransferencia);
+        BigDecimal taxa = transferService.calcularTaxa(dataTransferencia, valorTransferencia);
 
-        Assertions.assertEquals(11.75, taxa);
+        BigDecimal expectedTaxa = new BigDecimal("12.925");
+
+        Assertions.assertEquals(expectedTaxa, taxa);
     }
 }

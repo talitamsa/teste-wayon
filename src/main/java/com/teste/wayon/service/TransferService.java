@@ -1,103 +1,105 @@
 package com.teste.wayon.service;
 
-import com.teste.wayon.entity.Conta;
+import com.teste.wayon.config.Rate;
+import com.teste.wayon.config.RateConfiguration;
 import com.teste.wayon.entity.Transfer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.teste.wayon.exceptions.DataTransferenciaInvalidaException;
+import com.teste.wayon.exceptions.TaxaNaoEncontradaException;
+import com.teste.wayon.exceptions.TransferenciaInvalidaException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.ValidationException;
+import jakarta.validation.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import com.teste.wayon.repository.ContaRepository;
 import com.teste.wayon.repository.TransferRepository;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class TransferService {
 
-    private static final Logger logger = LoggerFactory.getLogger(TransferService.class);
+    private final Validator validator;
     private final TransferRepository transferRepository;
-    private final ContaRepository contaRepository;
+    private final RateConfiguration rateConfiguration;
 
     @Autowired
-    public TransferService(TransferRepository transferRepository, ContaRepository contaRepository) {
+    public TransferService(Validator validator, TransferRepository transferRepository, RateConfiguration rateConfiguration) {
+        this.validator = Validation.buildDefaultValidatorFactory().getValidator();
         this.transferRepository = transferRepository;
-        this.contaRepository = contaRepository;
+        this.rateConfiguration = rateConfiguration;
     }
 
     public void agendarTransferencia(Transfer transfer) {
+        // Método para agendar uma transferência.
+
+        // Valida o objeto Transfer
+        Set<ConstraintViolation<Transfer>> violations = validator.validate(transfer);
+        if (!violations.isEmpty()) {
+            throw new ValidationException("Erro de validação: " + violations);
+        }
+
         if (validarTransferencia(transfer)) {
-            long contaOrigem = transfer.getContaOrigem().getConta();
-            long contaDestino = transfer.getContaDestino().getConta();
-
-            logger.info("Data de transferência antes da configuração: {}", transfer.getDataTransferencia());
-
-            if (!contaRepository.existsByConta(contaOrigem)) {
-                Conta novaContaOrigem = new Conta();
-                novaContaOrigem.setConta(contaOrigem);
-                novaContaOrigem.setSaldo(0.0);
-                contaRepository.save(novaContaOrigem);
-            }
-
-            if (!contaRepository.existsByConta(contaDestino)) {
-                Conta novaContaDestino = new Conta();
-                novaContaDestino.setConta(contaDestino);
-                novaContaDestino.setSaldo(0.0);
-                contaRepository.save(novaContaDestino);
-            }
-
+            long contaOrigem = transfer.getContaOrigem();
+            long contaDestino = transfer.getContaDestino();
             LocalDate dataTransferencia = transfer.getDataTransferencia();
 
-            logger.info("Data de transferência após a configuração: {}", dataTransferencia);
+            BigDecimal taxa = calcularTaxa(dataTransferencia, transfer.getValorTransferencia());
 
-            double taxa = calcularTaxa(dataTransferencia, transfer.getValorTransferencia());
-            if (taxa == -1) {
-                throw new IllegalArgumentException("Transferência não permitida devido à falta de taxa aplicável.");
+            int diasTransferencia = LocalDate.now().until(dataTransferencia).getDays();
+
+            if (diasTransferencia > 51) {
+                throw new TaxaNaoEncontradaException("Transferência não permitida devido à falta de taxa aplicável.");
             }
 
-            logger.info("Taxa calculada: {}", taxa);
+            transfer.setContaOrigem(contaOrigem);
+            transfer.setContaDestino(contaDestino);
 
             transfer.setTaxa(taxa);
 
             transferRepository.save(transfer);
         } else {
-            throw new IllegalArgumentException("Transferência inválida. Verifique os dados!");
+            throw new TransferenciaInvalidaException("Transferência inválida. Verifique os dados!");
         }
     }
 
     public List<Transfer> obterExtratoPorConta(long numeroConta) {
-        return transferRepository.findByContaOrigemContaOrContaDestinoConta(numeroConta, numeroConta);
+        // Método para obter o extrato de transferências por conta.
+        return transferRepository.findByContaOrigem(numeroConta);
     }
 
-    public double calcularTaxa(LocalDate dataTransferencia, double valorTransferencia) {
-        LocalDate dataAgendamento = LocalDate.now();
-        int diasTransferencia = (int) dataAgendamento.until(dataTransferencia).getDays();
+    public BigDecimal calcularTaxa(LocalDate dataTransferencia, BigDecimal valorTransferencia) {
+        LocalDate dataAtual = LocalDate.now();
+        long diasTransferencia = dataTransferencia.toEpochDay() - dataAtual.toEpochDay();
+        System.out.println("Dias de Transferência: " + diasTransferencia);
 
         if (diasTransferencia < 0) {
-            throw new IllegalArgumentException("Data de transferência inválida");
-        } else if (diasTransferencia == 0) {
-            return valorTransferencia * 0.025;
-        } else if (diasTransferencia >= 1 && diasTransferencia <= 10) {
-            return 0.00;
-        } else if (diasTransferencia >= 11 && diasTransferencia <= 20) {
-            return valorTransferencia * 0.082;
-        } else if (diasTransferencia >= 21 && diasTransferencia <= 30) {
-            return valorTransferencia * 0.069;
-        } else if (diasTransferencia >= 31 && diasTransferencia <= 40) {
-            return valorTransferencia * 0.047;
-        } else if (diasTransferencia >= 41 && diasTransferencia <= 50) {
-            return valorTransferencia * 0.017;
+            throw new DataTransferenciaInvalidaException("Data de transferência inválida");
         } else {
-            throw new IllegalArgumentException("Transferência não permitida devido à falta de taxa aplicável.");
+            Optional<Rate> rate = rateConfiguration.getRateForDays((int) diasTransferencia);
+            if (rate.isPresent()) {
+                BigDecimal taxa = valorTransferencia.multiply(rate.get().getRate());
+                System.out.println("Taxa Calculada: " + taxa);
+                return taxa;
+            } else {
+                throw new TaxaNaoEncontradaException("Taxa de transferência não encontrada para os dias fornecidos.");
+            }
         }
     }
 
+
     private boolean validarTransferencia(Transfer transfer) {
-        if (transfer.getContaOrigem() == null || transfer.getContaDestino() == null) {
+        // Método para validar a transferência.
+
+        if (transfer == null || transfer.getValorTransferencia() == null || transfer.getDataTransferencia() == null) {
             return false;
         }
 
-        if (transfer.getValorTransferencia() <= 0) {
+        if (transfer.getValorTransferencia().compareTo(BigDecimal.ZERO) <= 0) {
             return false;
         }
 
@@ -107,5 +109,10 @@ public class TransferService {
         }
 
         return true;
+    }
+
+    public List<Transfer> obterTodosAgendamentos() {
+        // Consulta todos os agendamentos (transferências) na base de dados
+        return transferRepository.findAll();
     }
 }

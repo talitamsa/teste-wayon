@@ -1,9 +1,9 @@
 export interface Agendar {
   _id: string;
-  contaOrigem: string;
-  contaDestino: string;
-  valorTransferencia: string;
-  taxa: string;
+  contaOrigem: number;
+  contaDestino: number;
+  valorTransferencia: number;
+  taxa: number;
   dataTransferencia: string;
   dataAgendada: string;
 }
