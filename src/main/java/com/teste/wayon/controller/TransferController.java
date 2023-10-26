@@ -1,6 +1,8 @@
 package com.teste.wayon.controller;
 
 import com.teste.wayon.entity.Transfer;
+import com.teste.wayon.exceptions.TransferenciaInvalidaException;
+import com.teste.wayon.repository.TransferRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,9 +17,12 @@ public class TransferController {
 
     private final TransferService transferService;
 
+    private final TransferRepository transferRepository;
+
     @Autowired
-    public TransferController(TransferService transferService) {
+    public TransferController(TransferService transferService, TransferRepository transferRepository) {
         this.transferService = transferService;
+        this.transferRepository = transferRepository;
     }
 
     @PostMapping
@@ -45,4 +50,22 @@ public class TransferController {
         List<Transfer> extrato = transferService.obterTodosAgendamentos();
         return ResponseEntity.ok(extrato);
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> excluirTransferencia(@PathVariable Long id) {
+        try {
+
+            Transfer transferencia = transferRepository.findById(id)
+                    .orElseThrow(() -> new TransferenciaInvalidaException("{\"message\": \"Transferência não encontrada!: \"}"));
+
+            transferRepository.delete(transferencia);
+
+            return ResponseEntity.ok("{\"message\": \"Transferência excluída com sucesso\"}");
+        } catch (TransferenciaInvalidaException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"message\": \"Erro ao excluir a transferência. \"}");
+        }
+    }
+
 }

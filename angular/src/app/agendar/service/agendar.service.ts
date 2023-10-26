@@ -17,12 +17,12 @@ export class AgendarService {
     return this.httpClient.get<Agendar[]>(this.API).
     pipe(
       first(),
-      delay(2000),
+      delay(1000),
       tap(agendar => console.log(agendar))
     );
   }
 
-  save(registro: Agendar) {
+  save(registro: Partial<Agendar>) {
     return this.httpClient.post<Agendar>(this.API, registro).pipe(
       catchError((error) => {
         return of({ success: false, message: 'Erro ao salvar a transferência.', error: error });
@@ -30,5 +30,8 @@ export class AgendarService {
     );
   }
 
+  remove(id: number) {
+    return this.httpClient.delete(`${this.API}/${id}`).pipe(first());
+  }
 
 }

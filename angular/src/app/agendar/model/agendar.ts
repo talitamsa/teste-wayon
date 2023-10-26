@@ -1,5 +1,5 @@
 export interface Agendar {
-  _id: string;
+  _id: number;
   contaOrigem: number;
   contaDestino: number;
   valorTransferencia: number;

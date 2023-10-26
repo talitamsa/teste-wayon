@@ -1,12 +1,30 @@
-table {
-  width: 100%;
-  padding: 50px;
-}
-
 .loading-spinner {
   background: rgba($color: #545454, $alpha: 1.0);
   padding: 25px;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+mat-card{
+  max-width: 75%;
+  margin: 2em auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.column-flex{
+  display: flex;
+  flex-direction: column;
+  min-width: 300px;
+}
+
+mat-table{
+  overflow: auto;
+  max-height: 600px;
+}
+
+.action-column{
+  flex: 0 0 75px;
 }
